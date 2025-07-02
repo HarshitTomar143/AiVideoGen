@@ -35,6 +35,8 @@ export default function CreateNew() {
     getVideoScript();
   }
 
+  const[videoScript, setVideoScript]= useState()
+
   const prompt = `write a script to generate a ${formData.duration || '30 seconds'} video on topic: ${formData.topic} along with Ai image prompt in ${formData.imageStyle || 'realistic'} format in each scene and give result in json format with imageprompt and contenttext as field`;
   
   const getVideoScript= async()=>{
@@ -44,13 +46,17 @@ export default function CreateNew() {
       duration: formData.duration,
       imageStyle: formData.imageStyle
     } ).then(res=>{
-      console.log(res.data)
+      console.log(res.data.result)
+      setVideoScript(res.data.result);
+      
     });
     setLoading(false)
-    console.log(prompt)
+    
   }
 
   const [loading,setLoading]= useState(false)
+
+  
 
   return (
     <div className="flex flex-col min-h-screen overflow-hidden">
