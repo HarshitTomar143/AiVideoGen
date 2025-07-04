@@ -17,7 +17,7 @@ export default function CreateNew() {
   const [scriptError, setScriptError] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string>("");
-  const [captions, setCaptions] = useState<string>("");
+  const [captions, setCaptions] = useState<any[]>([]); // now stores parsed array of captions
 
   const onHandleInputchange = (fieldName: string, fieldValue: any) => {
     setFormData(prev => ({
@@ -49,7 +49,7 @@ export default function CreateNew() {
     setVideoScript("");
     setImagePrompts([]);
     setAudioUrl("");
-    setCaptions("");
+    setCaptions([]);
 
     const id = uuidv4();
 
@@ -78,6 +78,8 @@ export default function CreateNew() {
         if (audioRes.data?.url) {
           setAudioUrl(audioRes.data.url);
           console.log("Audio URL:", audioRes.data.url);
+
+          // generate captions now
           await GenerateAudioCaption(audioRes.data.url);
         }
 
@@ -100,7 +102,8 @@ export default function CreateNew() {
       });
 
       if (resp.data?.result) {
-        setCaptions(resp.data.result); // store captions in state
+        console.log("Captions result:", resp.data.result);
+        setCaptions(resp.data.result); // assuming result is an array of caption objects
       }
     } catch (err) {
       console.error("Caption generation failed:", err);
@@ -159,10 +162,17 @@ export default function CreateNew() {
               </div>
             )}
 
-            {captions && (
+            {captions.length > 0 && (
               <div className="mt-6 p-4 bg-gray-100 rounded-lg">
                 <h3 className="font-bold mb-2">Generated Captions</h3>
-                <p className="whitespace-pre-wrap break-words text-base">{captions}</p>
+                <ul className="list-disc pl-6 space-y-2">
+                  {captions.map((cap, idx) => (
+                    <li key={idx}>
+                      <span className="font-medium">{cap.text}</span>{" "}
+                      <span className="text-sm text-gray-500">({cap.start}s - {cap.end}s)</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
