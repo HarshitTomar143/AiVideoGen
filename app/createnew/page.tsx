@@ -17,6 +17,7 @@ export default function CreateNew() {
   const [scriptError, setScriptError] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string>("");
+  const [captions, setCaptions] = useState<string>("");
 
   const onHandleInputchange = (fieldName: string, fieldValue: any) => {
     setFormData(prev => ({
@@ -33,10 +34,12 @@ export default function CreateNew() {
     if (!formData.topic || formData.topic.trim() === "") missingFields.push("topic");
     if (!formData.duration || formData.duration.trim() === "") missingFields.push("duration");
     if (!formData.imageStyle || formData.imageStyle.trim() === "") missingFields.push("style");
+
     if (missingFields.length > 0) {
       setErrorMsg(`Please select or enter: ${missingFields.join(", ")}`);
       return;
     }
+
     getVideoScript();
   };
 
@@ -46,6 +49,9 @@ export default function CreateNew() {
     setVideoScript("");
     setImagePrompts([]);
     setAudioUrl("");
+    setCaptions("");
+
+    const id = uuidv4();
 
     try {
       const res = await axios.post("/api/getVideoScript", {
@@ -53,8 +59,6 @@ export default function CreateNew() {
         duration: formData.duration,
         imageStyle: formData.imageStyle,
       });
-
-      console.log("API response:", res.data);
 
       const { result } = res.data;
 
@@ -66,26 +70,41 @@ export default function CreateNew() {
           setImagePrompts(result.imagePrompts.filter((p: string) => typeof p === 'string' && p.trim().length > 0));
         }
 
-        const audioId = uuidv4();
         const audioRes = await axios.post("/api/audio", {
           text: cleanedStory,
-          id: audioId
+          id,
         });
 
-        if (audioRes.data?.audioUrl) {
-          setAudioUrl(audioRes.data.audioUrl);
+        if (audioRes.data?.url) {
+          setAudioUrl(audioRes.data.url);
+          console.log("Audio URL:", audioRes.data.url);
+          await GenerateAudioCaption(audioRes.data.url);
         }
 
-        setScriptError("");
       } else {
         setScriptError("No story was generated. Try a different topic or style.");
       }
+
     } catch (err) {
-      setScriptError("Failed to generate script. Please try again.");
-      console.error("API error:", err);
+      console.error("Script/audio generation failed:", err);
+      setScriptError("Something went wrong while generating the video content.");
     }
 
     setLoading(false);
+  };
+
+  const GenerateAudioCaption = async (fileUrl: string) => {
+    try {
+      const resp = await axios.post("/api/generateCaption", {
+        audioFileUrl: fileUrl,
+      });
+
+      if (resp.data?.result) {
+        setCaptions(resp.data.result); // store captions in state
+      }
+    } catch (err) {
+      console.error("Caption generation failed:", err);
+    }
   };
 
   return (
@@ -118,27 +137,32 @@ export default function CreateNew() {
             {videoScript && (
               <div className="mt-8 p-4 bg-gray-100 rounded-lg">
                 <h3 className="font-bold text-xl mb-2">Generated Video Story</h3>
-                <p className="whitespace-pre-wrap break-words text-base max-h-96 overflow-auto">
-                  {videoScript}
-                </p>
-              </div>
-            )}
-
-            {audioUrl && (
-              <div className="mt-4 text-center">
-                <audio controls src={audioUrl} className="mx-auto" />
-                <p className="text-sm text-gray-500 mt-2">Audio narration</p>
+                <p className="whitespace-pre-wrap break-words text-base max-h-96 overflow-auto">{videoScript}</p>
               </div>
             )}
 
             {imagePrompts.length > 0 && (
-              <div className="mt-6">
-                <h4 className="font-semibold mb-2">Generated Image Prompts</h4>
-                <ul className="list-disc pl-5 space-y-1">
-                  {imagePrompts.map((prompt, index) => (
-                    <li key={index}>{prompt}</li>
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-bold text-lg mb-2">Image Prompts</h3>
+                <ul className="list-disc pl-6 space-y-1">
+                  {imagePrompts.map((prompt, idx) => (
+                    <li key={idx}>{prompt}</li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {audioUrl && (
+              <div className="mt-6">
+                <h3 className="font-bold mb-2">Generated Audio</h3>
+                <audio controls src={audioUrl} className="w-full" />
+              </div>
+            )}
+
+            {captions && (
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <h3 className="font-bold mb-2">Generated Captions</h3>
+                <p className="whitespace-pre-wrap break-words text-base">{captions}</p>
               </div>
             )}
           </div>
